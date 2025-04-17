@@ -1,0 +1,149 @@
+openapi: 3.0.0
+info:
+  title: API de Lista de Tareas (Flask Demo)
+  description: Una API simple para gestionar una lista de tareas, implementada con Flask y usando un archivo JSON como base de datos. Creada para fines demostrativos y de aprendizaje.
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:5000
+    description: Servidor de desarrollo local
+
+tags:
+  - name: Tareas
+    description: Operaciones relacionadas con las tareas
+
+paths:
+  /tareas:
+    get:
+      tags:
+        - Tareas
+      summary: Obtener todas las tareas
+      description: Devuelve una lista completa de todas las tareas almacenadas.
+      operationId: getTareas
+      responses:
+        '200':
+          description: Lista de tareas obtenida exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tarea' # Referencia al esquema de Tarea
+        '500':
+           description: Error interno del servidor al leer los datos.
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Tareas
+      summary: Crear una nueva tarea
+      description: Añade una nueva tarea a la lista. Requiere una descripción en el cuerpo de la solicitud.
+      operationId: crearTarea
+      requestBody:
+        description: Objeto JSON con los datos de la nueva tarea.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - descripcion
+              properties:
+                descripcion:
+                  type: string
+                  description: El texto o contenido de la tarea.
+                  example: "Hacer la compra semanal"
+                completada:
+                  type: boolean
+                  description: Estado inicial de la tarea (opcional, por defecto es false).
+                  example: false
+      responses:
+        '201':
+          description: Tarea creada exitosamente. Devuelve la tarea recién creada con su ID asignado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '400':
+          description: Solicitud inválida. Puede ser porque el cuerpo no es JSON o falta el campo 'descripcion'.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+           description: Error interno del servidor al guardar los datos.
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Error'
+
+  /tareas/{tarea_id}:
+    get:
+      tags:
+        - Tareas
+      summary: Obtener una tarea por su ID
+      description: Devuelve los detalles de una única tarea especificada por su ID.
+      operationId: getTareaPorId
+      parameters:
+        - name: tarea_id
+          in: path
+          required: true
+          description: El ID numérico de la tarea que se desea obtener.
+          schema:
+            type: integer
+            format: int64 # O simplemente integer si no esperas IDs muy grandes
+            example: 1
+      responses:
+        '200':
+          description: Tarea encontrada y devuelta exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '404':
+          description: Tarea no encontrada. El ID proporcionado no corresponde a ninguna tarea existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+           description: Error interno del servidor al leer los datos.
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Tarea:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Identificador único de la tarea (generado por el servidor).
+          readOnly: true # Indica que el cliente no debería enviarlo al crear
+          example: 10
+        descripcion:
+          type: string
+          description: Contenido o descripción de la tarea.
+          example: "Preparar presentación API"
+        completada:
+          type: boolean
+          description: Indica si la tarea ha sido completada o no.
+          example: false
+      required: # Propiedades que siempre estarán presentes en una Tarea válida devuelta por la API
+        - id
+        - descripcion
+        - completada
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensaje descriptivo del error ocurrido.
+          example: "Tarea no encontrada"
+      required:
+        - error
