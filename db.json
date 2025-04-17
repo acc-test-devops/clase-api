@@ -1,0 +1,19 @@
+{
+    "tareas": [
+        {
+            "id": 1,
+            "descripcion": "Aprender Flask",
+            "completada": false
+        },
+        {
+            "id": 2,
+            "descripcion": "Crear API REST",
+            "completada": false
+        },
+        {
+            "id": 3,
+            "descripcion": "Probar Thunder Client",
+            "completada": false
+        }
+    ]
+}
