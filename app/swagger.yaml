@@ -1,17 +1,128 @@
 openapi: 3.0.0
 info:
-  title: API de Lista de Tareas (Flask Demo)
-  description: Una API simple para gestionar una lista de tareas, implementada con Flask y usando un archivo JSON como base de datos. Creada para fines demostrativos y de aprendizaje.
-  version: 1.0.0
+  title: API de Lista de Tareas con Autenticación
+  description: Una API para gestionar una lista de tareas, implementada con Flask y JWT para autenticación. Usa archivos JSON como base de datos.
+  version: 2.0.0
 servers:
   - url: http://127.0.0.1:5000
     description: Servidor de desarrollo local
 
 tags:
+  - name: Autenticación
+    description: Endpoints para registro y login de usuarios
   - name: Tareas
-    description: Operaciones relacionadas con las tareas
+    description: Operaciones relacionadas con las tareas (requieren autenticación)
 
 paths:
+  /auth/registro:
+    post:
+      tags:
+        - Autenticación
+      summary: Registrar un nuevo usuario
+      description: Crea una nueva cuenta de usuario con username y password.
+      operationId: registrarUsuario
+      requestBody:
+        description: Datos del nuevo usuario
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "usuario123"
+                password:
+                  type: string
+                  format: password
+                  example: "contraseña123"
+                email:
+                  type: string
+                  format: email
+                  example: "usuario@ejemplo.com"
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: "Usuario registrado exitosamente"
+                  id:
+                    type: string
+                    format: uuid
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: El usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Autenticación
+      summary: Iniciar sesión
+      description: Autentica a un usuario y devuelve un token JWT.
+      operationId: loginUsuario
+      requestBody:
+        description: Credenciales del usuario
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "usuario123"
+                password:
+                  type: string
+                  format: password
+                  example: "contraseña123"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    example: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                  token_type:
+                    type: string
+                    example: "Bearer"
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Credenciales incorrectas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /tareas:
     get:
       tags:
@@ -19,30 +130,30 @@ paths:
       summary: Obtener todas las tareas
       description: Devuelve una lista completa de todas las tareas almacenadas.
       operationId: getTareas
+      security:
+        - bearerAuth: []
       responses:
         '200':
-          description: Lista de tareas obtenida exitosamente.
+          description: Lista de tareas obtenida exitosamente
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Tarea' # Referencia al esquema de Tarea
-        '500':
-           description: Error interno del servidor al leer los datos.
-           content:
-             application/json:
-               schema:
-                 $ref: '#/components/schemas/Error'
+                  $ref: '#/components/schemas/Tarea'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
     post:
       tags:
         - Tareas
       summary: Crear una nueva tarea
-      description: Añade una nueva tarea a la lista. Requiere una descripción en el cuerpo de la solicitud.
+      description: Añade una nueva tarea a la lista. Requiere autenticación.
       operationId: crearTarea
+      security:
+        - bearerAuth: []
       requestBody:
-        description: Objeto JSON con los datos de la nueva tarea.
+        description: Objeto JSON con los datos de la nueva tarea
         required: true
         content:
           application/json:
@@ -53,31 +164,26 @@ paths:
               properties:
                 descripcion:
                   type: string
-                  description: El texto o contenido de la tarea.
                   example: "Hacer la compra semanal"
                 completada:
                   type: boolean
-                  description: Estado inicial de la tarea (opcional, por defecto es false).
+                  default: false
                   example: false
       responses:
         '201':
-          description: Tarea creada exitosamente. Devuelve la tarea recién creada con su ID asignado.
+          description: Tarea creada exitosamente
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tarea'
         '400':
-          description: Solicitud inválida. Puede ser porque el cuerpo no es JSON o falta el campo 'descripcion'.
+          description: Solicitud inválida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-           description: Error interno del servidor al guardar los datos.
-           content:
-             application/json:
-               schema:
-                 $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 
   /tareas/{tarea_id}:
     get:
@@ -86,64 +192,189 @@ paths:
       summary: Obtener una tarea por su ID
       description: Devuelve los detalles de una única tarea especificada por su ID.
       operationId: getTareaPorId
+      security:
+        - bearerAuth: []
       parameters:
         - name: tarea_id
           in: path
           required: true
-          description: El ID numérico de la tarea que se desea obtener.
+          description: El ID numérico de la tarea
           schema:
             type: integer
-            format: int64 # O simplemente integer si no esperas IDs muy grandes
             example: 1
       responses:
         '200':
-          description: Tarea encontrada y devuelta exitosamente.
+          description: Tarea encontrada y devuelta exitosamente
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tarea'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
         '404':
-          description: Tarea no encontrada. El ID proporcionado no corresponde a ninguna tarea existente.
+          description: Tarea no encontrada
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-           description: Error interno del servidor al leer los datos.
-           content:
-             application/json:
-               schema:
-                 $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Tareas
+      summary: Actualizar una tarea
+      description: Actualiza una tarea existente. Solo el dueño puede modificarla.
+      operationId: actualizarTarea
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tarea_id
+          in: path
+          required: true
+          description: El ID numérico de la tarea
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        description: Datos a actualizar
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descripcion:
+                  type: string
+                  example: "Nueva descripción"
+                completada:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Tarea actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarea'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: No tienes permiso para modificar esta tarea
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Tareas
+      summary: Eliminar una tarea
+      description: Elimina una tarea específica. Solo el dueño puede eliminarla.
+      operationId: eliminarTarea
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tarea_id
+          in: path
+          required: true
+          description: El ID numérico de la tarea
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Tarea eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: "Tarea eliminada exitosamente"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: No tienes permiso para eliminar esta tarea
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tarea no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    UnauthorizedError:
+      description: Token de acceso ausente o inválido
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "No autorizado"
+              mensaje:
+                type: string
+                example: "Se requiere un token de acceso"
+
   schemas:
     Tarea:
       type: object
       properties:
         id:
           type: integer
-          description: Identificador único de la tarea (generado por el servidor).
-          readOnly: true # Indica que el cliente no debería enviarlo al crear
+          description: Identificador único de la tarea
+          readOnly: true
           example: 10
         descripcion:
           type: string
-          description: Contenido o descripción de la tarea.
+          description: Contenido o descripción de la tarea
           example: "Preparar presentación API"
         completada:
           type: boolean
-          description: Indica si la tarea ha sido completada o no.
+          description: Indica si la tarea ha sido completada o no
           example: false
-      required: # Propiedades que siempre estarán presentes en una Tarea válida devuelta por la API
+        usuario_id:
+          type: string
+          format: uuid
+          description: ID del usuario que creó la tarea
+          readOnly: true
+          example: "123e4567-e89b-12d3-a456-426614174000"
+      required:
         - id
         - descripcion
         - completada
+        - usuario_id
 
     Error:
       type: object
       properties:
         error:
           type: string
-          description: Mensaje descriptivo del error ocurrido.
+          description: Mensaje descriptivo del error ocurrido
           example: "Tarea no encontrada"
       required:
         - error
